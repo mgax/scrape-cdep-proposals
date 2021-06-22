@@ -4,3 +4,9 @@ services:
   app:
     build: .
     command: tail -f /dev/null
+    volumes:
+      - .:/app
+      - requests_cache:/var/local/requests_cache
+
+volumes:
+  requests_cache:
