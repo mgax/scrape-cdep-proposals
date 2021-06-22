@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import logging
+import sys
+import csv
 
 from requests_cache import CachedSession
 import lxml.html
@@ -35,17 +37,53 @@ def proposals(url):
 
 
 def proposal_page(url):
-    for tr in get(url).cssselect("tbody tr"):
-        if len(tr.cssselect("td")) >= 2:
-            print(tr)
-            break
+    page = get(url).cssselect(".program-lucru-detalii")[0]
+
+    title = page.cssselect("h1")[0].text
+    description = page.cssselect("h4")[0].text
+    rv = {
+        "Title": title,
+        "Description": description,
+    }
+
+    tbody = page.cssselect("table tbody")[0]
+    for tr in tbody.cssselect(":scope > tr"):
+        tds = tr.cssselect(":scope > td")
+        if len(tds) >= 2:
+            name = tds[0].text.replace("-", "").replace(":", "").strip()
+            if name not in ["Stadiu", "Termen adoptare", "Consultati"]:
+                value = tds[1].text_content().strip()
+                rv[name] = value
+    return rv
+
+
+def iter_proposals():
+    for year_url in years():
+        for proposal_url in proposals(year_url):
+            yield proposal_page(proposal_url)
 
 
 def main():
-    for year_url in years():
-        for proposal_url in proposals(year_url):
-            proposal_page(proposal_url)
-            return
+    fieldnames = [
+        "Title",
+        "Description",
+        "B.P.I.",
+        "Camera Deputatilor",
+        "Senat",
+        "Guvern",
+        "Procedura legislativa",
+        "Camera decizionala",
+        "Tip initiativa",
+        "Caracter",
+        "Procedura de urgenta",
+        "Initiator",
+        "Prioritate legislativa",
+        "Consultare publica",
+    ]
+    writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
+    writer.writeheader()
+    for proposal in iter_proposals():
+        writer.writerow(proposal)
 
 
 if __name__ == "__main__":
