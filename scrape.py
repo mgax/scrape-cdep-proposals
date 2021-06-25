@@ -29,7 +29,6 @@ OK_FIELDS = [
     "Caracter",
     "Procedura de urgenta",
     "Stadiu",
-    "Initiator",
     "Prioritate legislativa",
     "Consultare publica",
 ]
@@ -75,15 +74,16 @@ def proposal_page(url):
         tds = tr.cssselect(":scope > td")
         if len(tds) >= 2:
             name = tds[0].text.replace("-", "").replace(":", "").strip()
+            value = tds[1].text_content().strip()
+
             if name in OK_FIELDS:
-                value = tds[1].text_content().strip()
                 fields[name] = value
 
             if name == "Initiator" and value not in ["Guvern", "Cetateni"]:
-                number_match = re.match(r"(?P<number>\d+)\s", fields["Initiator"])
-                if number_match is None:
-                    import pdb; pdb.set_trace()
-                count = int(number_match.group("number"))
+                number_match = re.match(r"(?P<number>\d+)\s", value)
+                assert number_match, f"Failed to parse `Initiator` in {url}"
+
+                fields["sponsor_count"] = int(number_match.group("number"))
 
                 for itr in tds[1].cssselect("tr"):
                     itds = itr.cssselect("td")
@@ -114,6 +114,7 @@ def scrape(proposals_csv, sponsors_csv):
         "Title",
         "Description",
         "url_cdep",
+        "sponsor_count",
     ] + OK_FIELDS
     proposals_writer = csv.DictWriter(proposals_csv, fieldnames=proposal_fields)
     proposals_writer.writeheader()
