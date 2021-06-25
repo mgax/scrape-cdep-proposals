@@ -83,7 +83,8 @@ def bill_page(url):
                 number_match = re.match(r"(?P<number>\d+)\s", tds[1].text)
                 assert number_match, f"Failed to parse `Initiator` in {url}"
 
-                fields["sponsor_count"] = int(number_match.group("number"))
+                sponsor_count = int(number_match.group("number"))
+                fields["sponsor_count"] = sponsor_count
 
                 for itr in tds[1].cssselect("tr"):
                     itds = itr.cssselect("td")
@@ -100,12 +101,17 @@ def bill_page(url):
 
 
 def iter_bills():
-    for year_url in years():
-        for bill_url in bills(year_url):
-            try:
-                yield bill_page(bill_url)
-            except Exception:
-                logger.exception("Failed to parse %s", bill_url)
+    errors = 0
+    try:
+        for year_url in years():
+            for bill_url in bills(year_url):
+                try:
+                    yield bill_page(bill_url)
+                except Exception:
+                    logger.exception("Failed to parse %s", bill_url)
+                    errors += 1
+    finally:
+        logger.info("Error count: %d", errors)
 
 
 @click.command()
