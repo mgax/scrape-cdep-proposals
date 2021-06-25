@@ -49,12 +49,12 @@ def years():
                 yield a.attrib["href"]
 
 
-def proposals(url):
+def bills(url):
     for a in get(url).cssselect("tbody tr td:nth-child(2) a"):
         yield a.attrib["href"]
 
 
-def proposal_page(url):
+def bill_page(url):
     page = get(url).cssselect(".program-lucru-detalii")[0]
 
     idp = parse_qs(url.split("?", 1)[1])["idp"][0]
@@ -99,32 +99,32 @@ def proposal_page(url):
     return fields, sponsors
 
 
-def iter_proposals():
+def iter_bills():
     for year_url in years():
-        for proposal_url in proposals(year_url):
-            yield proposal_page(proposal_url)
+        for bill_url in bills(year_url):
+            yield bill_page(bill_url)
 
 
 @click.command()
-@click.argument("proposals_csv", type=click.File(mode="w"))
+@click.argument("bills_csv", type=click.File(mode="w"))
 @click.argument("sponsors_csv", type=click.File(mode="w"))
-def scrape(proposals_csv, sponsors_csv):
-    proposal_fields = [
+def scrape(bills_csv, sponsors_csv):
+    bill_fields = [
         "idp",
         "Title",
         "Description",
         "url_cdep",
         "sponsor_count",
     ] + OK_FIELDS
-    proposals_writer = csv.DictWriter(proposals_csv, fieldnames=proposal_fields)
-    proposals_writer.writeheader()
+    bills_writer = csv.DictWriter(bills_csv, fieldnames=bill_fields)
+    bills_writer.writeheader()
 
     sponsor_fields = ["idp", "name", "affiliation", "url"]
     sponsors_writer = csv.DictWriter(sponsors_csv, fieldnames=sponsor_fields)
     sponsors_writer.writeheader()
 
-    for fields, sponsors in iter_proposals():
-        proposals_writer.writerow(fields)
+    for fields, sponsors in iter_bills():
+        bills_writer.writerow(fields)
 
         for sponsor in sponsors:
             sponsors_writer.writerow(dict(sponsor, idp=fields["idp"]))
