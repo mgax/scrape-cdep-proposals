@@ -3,6 +3,7 @@
 import logging
 import sys
 import csv
+import re
 from urllib.parse import parse_qs
 
 from requests_cache import CachedSession
@@ -67,6 +68,8 @@ def proposal_page(url):
         "url_cdep": f"{SITE_URL}{url}",
     }
 
+    sponsors = []
+
     tbody = page.cssselect("table tbody")[0]
     for tr in tbody.cssselect(":scope > tr"):
         tds = tr.cssselect(":scope > td")
@@ -76,7 +79,24 @@ def proposal_page(url):
                 value = tds[1].text_content().strip()
                 fields[name] = value
 
-    return fields
+            if name == "Initiator" and value not in ["Guvern", "Cetateni"]:
+                number_match = re.match(r"(?P<number>\d+)\s", fields["Initiator"])
+                if number_match is None:
+                    import pdb; pdb.set_trace()
+                count = int(number_match.group("number"))
+
+                for itr in tds[1].cssselect("tr"):
+                    itds = itr.cssselect("td")
+                    affiliation = itds[0].text.replace(":", "")
+                    for a in itds[1].cssselect("a"):
+                        href = a.attrib["href"]
+                        sponsors.append({
+                            "name": a.text,
+                            "affiliation": affiliation,
+                            "url": f"{SITE_URL}{href}",
+                        })
+
+    return fields, sponsors
 
 
 def iter_proposals():
@@ -87,7 +107,8 @@ def iter_proposals():
 
 @click.command()
 @click.argument("proposals_csv", type=click.File(mode="w"))
-def scrape(proposals_csv):
+@click.argument("sponsors_csv", type=click.File(mode="w"))
+def scrape(proposals_csv, sponsors_csv):
     proposal_fields = [
         "idp",
         "Title",
@@ -97,8 +118,15 @@ def scrape(proposals_csv):
     proposals_writer = csv.DictWriter(proposals_csv, fieldnames=proposal_fields)
     proposals_writer.writeheader()
 
+    sponsor_fields = ["idp", "name", "affiliation", "url"]
+    sponsors_writer = csv.DictWriter(sponsors_csv, fieldnames=sponsor_fields)
+    sponsors_writer.writeheader()
+
     for fields, sponsors in iter_proposals():
         proposals_writer.writerow(fields)
+
+        for sponsor in sponsors:
+            sponsors_writer.writerow(dict(sponsor, idp=fields["idp"]))
 
 
 if __name__ == "__main__":
