@@ -60,11 +60,11 @@ def proposal_page(url):
     idp = parse_qs(url.split("?", 1)[1])["idp"][0]
     title = page.cssselect("h1")[0].text
     description = page.cssselect("h4")[0].text
-    rv = {
+    fields = {
         "idp": idp,
         "Title": title,
         "Description": description,
-        "URL CDEP": f"{SITE_URL}{url}",
+        "url_cdep": f"{SITE_URL}{url}",
     }
 
     tbody = page.cssselect("table tbody")[0]
@@ -74,9 +74,9 @@ def proposal_page(url):
             name = tds[0].text.replace("-", "").replace(":", "").strip()
             if name in OK_FIELDS:
                 value = tds[1].text_content().strip()
-                rv[name] = value
+                fields[name] = value
 
-    return rv
+    return fields
 
 
 def iter_proposals():
@@ -86,18 +86,19 @@ def iter_proposals():
 
 
 @click.command()
-@click.argument("out_file", type=click.File(mode="w"))
-def scrape(out_file):
-    fieldnames = [
+@click.argument("proposals_csv", type=click.File(mode="w"))
+def scrape(proposals_csv):
+    proposal_fields = [
         "idp",
         "Title",
         "Description",
-        "URL CDEP",
+        "url_cdep",
     ] + OK_FIELDS
-    writer = csv.DictWriter(out_file, fieldnames=fieldnames)
-    writer.writeheader()
-    for proposal in iter_proposals():
-        writer.writerow(proposal)
+    proposals_writer = csv.DictWriter(proposals_csv, fieldnames=proposal_fields)
+    proposals_writer.writeheader()
+
+    for fields, sponsors in iter_proposals():
+        proposals_writer.writerow(fields)
 
 
 if __name__ == "__main__":
