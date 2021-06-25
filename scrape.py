@@ -15,6 +15,22 @@ session = CachedSession(cache_name="/var/local/requests_cache/cache.db")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+OK_FIELDS = [
+    "B.P.I.",
+    "Camera Deputatilor",
+    "Senat",
+    "Guvern",
+    "Procedura legislativa",
+    "Camera decizionala",
+    "Tip initiativa",
+    "Caracter",
+    "Procedura de urgenta",
+    "Stadiu",
+    "Initiator",
+    "Prioritate legislativa",
+    "Consultare publica",
+]
+
 
 def get(url):
     logger.debug("GET %s", url)
@@ -51,9 +67,10 @@ def proposal_page(url):
         tds = tr.cssselect(":scope > td")
         if len(tds) >= 2:
             name = tds[0].text.replace("-", "").replace(":", "").strip()
-            if name not in ["Stadiu", "Termen adoptare", "Consultati"]:
+            if name in OK_FIELDS:
                 value = tds[1].text_content().strip()
                 rv[name] = value
+
     return rv
 
 
@@ -63,24 +80,12 @@ def iter_proposals():
             yield proposal_page(proposal_url)
 
 
-def main():
+def scrape(out_file):
     fieldnames = [
         "Title",
         "Description",
-        "B.P.I.",
-        "Camera Deputatilor",
-        "Senat",
-        "Guvern",
-        "Procedura legislativa",
-        "Camera decizionala",
-        "Tip initiativa",
-        "Caracter",
-        "Procedura de urgenta",
-        "Initiator",
-        "Prioritate legislativa",
-        "Consultare publica",
-    ]
-    writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
+    ] + OK_FIELDS
+    writer = csv.DictWriter(out_file, fieldnames=fieldnames)
     writer.writeheader()
     for proposal in iter_proposals():
         writer.writerow(proposal)
@@ -88,4 +93,4 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig()
-    main()
+    scrape(sys.stdout)
