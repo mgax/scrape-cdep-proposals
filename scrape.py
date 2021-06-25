@@ -74,13 +74,13 @@ def bill_page(url):
         tds = tr.cssselect(":scope > td")
         if len(tds) >= 2:
             name = tds[0].text.replace("-", "").replace(":", "").strip()
-            value = tds[1].text_content().strip()
 
             if name in OK_FIELDS:
+                value = tds[1].text_content().strip()
                 fields[name] = value
 
-            if name == "Initiator" and value not in ["Guvern", "Cetateni"]:
-                number_match = re.match(r"(?P<number>\d+)\s", value)
+            if name == "Initiator" and tds[1].cssselect("table"):
+                number_match = re.match(r"(?P<number>\d+)\s", tds[1].text)
                 assert number_match, f"Failed to parse `Initiator` in {url}"
 
                 fields["sponsor_count"] = int(number_match.group("number"))
