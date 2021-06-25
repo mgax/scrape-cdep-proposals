@@ -3,6 +3,7 @@
 import logging
 import sys
 import csv
+from urllib.parse import parse_qs
 
 from requests_cache import CachedSession
 import lxml.html
@@ -56,9 +57,11 @@ def proposals(url):
 def proposal_page(url):
     page = get(url).cssselect(".program-lucru-detalii")[0]
 
+    idp = parse_qs(url.split("?", 1)[1])["idp"][0]
     title = page.cssselect("h1")[0].text
     description = page.cssselect("h4")[0].text
     rv = {
+        "idp": idp,
         "Title": title,
         "Description": description,
         "URL CDEP": f"{SITE_URL}{url}",
@@ -86,6 +89,7 @@ def iter_proposals():
 @click.argument("out_file", type=click.File(mode="w"))
 def scrape(out_file):
     fieldnames = [
+        "idp",
         "Title",
         "Description",
         "URL CDEP",
