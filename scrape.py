@@ -102,7 +102,10 @@ def bill_page(url):
 def iter_bills():
     for year_url in years():
         for bill_url in bills(year_url):
-            yield bill_page(bill_url)
+            try:
+                yield bill_page(bill_url)
+            except Exception:
+                logger.exception("Failed to parse %s", bill_url)
 
 
 @click.command()
