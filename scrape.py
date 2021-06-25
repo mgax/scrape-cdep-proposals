@@ -60,6 +60,7 @@ def proposal_page(url):
     rv = {
         "Title": title,
         "Description": description,
+        "URL CDEP": f"{SITE_URL}{url}",
     }
 
     tbody = page.cssselect("table tbody")[0]
@@ -84,6 +85,7 @@ def scrape(out_file):
     fieldnames = [
         "Title",
         "Description",
+        "URL CDEP",
     ] + OK_FIELDS
     writer = csv.DictWriter(out_file, fieldnames=fieldnames)
     writer.writeheader()
