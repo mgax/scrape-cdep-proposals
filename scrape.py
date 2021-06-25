@@ -6,6 +6,7 @@ import csv
 
 from requests_cache import CachedSession
 import lxml.html
+import click
 
 SITE_URL = "http://www.cdep.ro"
 ROOT_URL = "/pls/proiecte/upl_pck2015.home"
@@ -81,6 +82,8 @@ def iter_proposals():
             yield proposal_page(proposal_url)
 
 
+@click.command()
+@click.argument("out_file", type=click.File(mode="w"))
 def scrape(out_file):
     fieldnames = [
         "Title",
@@ -95,4 +98,4 @@ def scrape(out_file):
 
 if __name__ == "__main__":
     logging.basicConfig()
-    scrape(sys.stdout)
+    scrape()
