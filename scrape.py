@@ -34,9 +34,13 @@ OK_FIELDS = [
 ]
 
 
+def resolve(url):
+    return f"{SITE_URL}{url}"
+
+
 def get(url):
     logger.debug("GET %s", url)
-    return lxml.html.fromstring(session.get(f"{SITE_URL}{url}").text)
+    return lxml.html.fromstring(session.get(resolve(url)).text)
 
 
 def years():
@@ -64,7 +68,7 @@ def bill_page(url):
         "idp": idp,
         "Title": title,
         "Description": description,
-        "url_cdep": f"{SITE_URL}{url}",
+        "url_cdep": resolve(url),
     }
 
     sponsors = []
@@ -94,7 +98,7 @@ def bill_page(url):
                         sponsors.append({
                             "name": a.text,
                             "affiliation": affiliation,
-                            "url": f"{SITE_URL}{href}",
+                            "url": resolve(href),
                         })
 
     return fields, sponsors
