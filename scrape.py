@@ -5,6 +5,9 @@ import sys
 import csv
 import re
 from urllib.parse import parse_qs
+import sqlite3
+import subprocess
+import shlex
 
 from requests_cache import CachedSession
 import lxml.html
@@ -33,6 +36,40 @@ OK_FIELDS = [
     "Consultare publica",
 ]
 
+UA = (
+    "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) "
+    "Gecko/20100101 Firefox/89.0"
+)
+
+class ValueCache:
+
+    def __init__(self, path):
+        self.con = sqlite3.connect(path, isolation_level=None)
+        self.con.execute("""
+            create table if not exists cache
+            (id text primary key, value text);
+        """)
+
+    def save(self, key, value):
+        res = self.con.execute(
+            "insert into cache(id, value) values(?, ?)",
+            (key, value),
+        )
+
+    def get(self, key):
+        res = self.con.execute(
+            "select value from cache where id = ?",
+            (key,),
+        )
+        rows = res.fetchall()
+        if rows:
+            return rows[0][0]
+        else:
+            raise KeyError
+
+
+pagecount_cache = ValueCache("/var/local/requests_cache/pagecount.db")
+
 
 def resolve(url):
     return f"{SITE_URL}{url}"
@@ -58,6 +95,22 @@ def bills(url):
         yield a.attrib["href"]
 
 
+def count_pages(url):
+    try:
+        return pagecount_cache.get(url)
+    except KeyError:
+        logger.debug("Counting pages %s", url)
+        cmd = f"curl -s {shlex.quote(url)} -H '{UA}' | pdfinfo -"
+        try:
+            res = subprocess.check_output(cmd, shell=True).decode("utf8")
+        except subprocess.CalledProcessError:
+            pages = -1
+        else:
+            pages = int(re.search(r"Pages:\s+(\d+)\s", res).group(1))
+        pagecount_cache.save(url, pages)
+        return pages
+
+
 def bill_page(url):
     page = get(url).cssselect(".program-lucru-detalii")[0]
 
@@ -69,6 +122,8 @@ def bill_page(url):
         "Title": title,
         "Description": description,
         "url_cdep": resolve(url),
+        "pages_forma_initiatorului": "",
+        "pages_forma_senat": "",
     }
 
     sponsors = []
@@ -101,6 +156,26 @@ def bill_page(url):
                             "url": resolve(href),
                         })
 
+    pdf_links = {}
+    for pdf_link in page.cssselect("a[target=PDF]"):
+        tr = pdf_link.getparent().getparent()
+        label = tr.cssselect("td")[1].text_content().strip()
+        pdf_links[label] = pdf_link.attrib["href"]
+
+    try:
+        href = pdf_links["Forma iniţiatorului"]
+    except KeyError:
+        pass
+    else:
+        fields["pages_forma_initiatorului"] = count_pages(resolve(href))
+
+    try:
+        href = pdf_links["Forma adoptată de Senat"]
+    except KeyError:
+        pass
+    else:
+        fields["pages_forma_senat"] = count_pages(resolve(href))
+
     return fields, sponsors
 
 
@@ -128,6 +203,8 @@ def scrape(bills_csv, sponsors_csv):
         "Description",
         "url_cdep",
         "sponsor_count",
+        "pages_forma_initiatorului",
+        "pages_forma_senat",
     ] + OK_FIELDS
     bills_writer = csv.DictWriter(bills_csv, fieldnames=bill_fields)
     bills_writer.writeheader()
