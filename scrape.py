@@ -159,7 +159,7 @@ def bill_page(url):
     pdf_links = {}
     for pdf_link in page.cssselect("a[target=PDF]"):
         tr = pdf_link.getparent().getparent()
-        label = tr.cssselect("td")[1].text_content().strip()
+        label = tr.text_content().strip()
         pdf_links[label] = pdf_link.attrib["href"]
 
     try:
