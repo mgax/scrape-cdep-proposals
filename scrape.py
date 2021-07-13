@@ -4,10 +4,11 @@ import logging
 import sys
 import csv
 import re
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse
 import sqlite3
 import subprocess
 import shlex
+from pathlib import Path
 
 from requests_cache import CachedSession
 import lxml.html
@@ -15,6 +16,7 @@ import click
 
 SITE_URL = "http://www.cdep.ro"
 ROOT_URL = "/pls/proiecte/upl_pck2015.home"
+PDF_ROOT = Path("/app/pdfs")
 
 session = CachedSession(cache_name="/var/local/requests_cache/cache.db")
 
@@ -96,19 +98,39 @@ def bills(url):
 
 
 def count_pages(url):
+    rel_path = urlparse(url).path.lstrip("/")
+
     try:
-        return pagecount_cache.get(url)
+        return rel_path, pagecount_cache.get(url)
     except KeyError:
-        logger.debug("Counting pages %s", url)
-        cmd = f"curl -s {shlex.quote(url)} -H '{UA}' | pdfinfo -"
+        pass
+
+    logger.debug("Counting pages %s", url)
+
+    path = PDF_ROOT / rel_path
+    path.parent.mkdir(exist_ok=True, parents=True)
+    q = lambda arg: shlex.quote(str(arg))
+
+    download_cmd = f"curl -s {q(url)} -H '{UA}' -o {q(path)}"
+    pages_cmd = f"pdfinfo {q(path)}"
+
+    try:
+        if not path.exists():
+            subprocess.check_call(download_cmd, shell=True)
+        res = subprocess.check_output(pages_cmd, shell=True).decode("utf8")
+
+    except Exception:
+        pages = -1
         try:
-            res = subprocess.check_output(cmd, shell=True).decode("utf8")
-        except subprocess.CalledProcessError:
-            pages = -1
-        else:
-            pages = int(re.search(r"Pages:\s+(\d+)\s", res).group(1))
-        pagecount_cache.save(url, pages)
-        return pages
+            path.unlink()
+        except:
+            pass
+
+    else:
+        pages = int(re.search(r"Pages:\s+(\d+)\s", res).group(1))
+
+    pagecount_cache.save(url, pages)
+    return rel_path, pages
 
 
 def bill_page(url):
@@ -124,6 +146,7 @@ def bill_page(url):
         "url_cdep": resolve(url),
         "pages_forma_initiatorului": "",
         "pages_forma_senat": "",
+        "pdf": "",
     }
 
     sponsors = []
@@ -167,14 +190,18 @@ def bill_page(url):
     except KeyError:
         pass
     else:
-        fields["pages_forma_initiatorului"] = count_pages(resolve(href))
+        rel_path, pages = count_pages(resolve(href))
+        fields["pdf"] = rel_path
+        fields["pages_forma_initiatorului"] = pages
 
     try:
         href = pdf_links["Forma adoptată de Senat"]
     except KeyError:
         pass
     else:
-        fields["pages_forma_senat"] = count_pages(resolve(href))
+        rel_path, pages = count_pages(resolve(href))
+        fields["pdf"] = rel_path
+        fields["pages_forma_senat"] = pages
 
     return fields, sponsors
 
@@ -205,6 +232,7 @@ def scrape(bills_csv, sponsors_csv):
         "sponsor_count",
         "pages_forma_initiatorului",
         "pages_forma_senat",
+        "pdf",
     ] + OK_FIELDS
     bills_writer = csv.DictWriter(bills_csv, fieldnames=bill_fields)
     bills_writer.writeheader()
