@@ -209,6 +209,9 @@ def iter_bills():
     errors = 0
     try:
         for year_url in years():
+            year = int(year_url[-4:])
+            if year not in [2021, 2022]:
+                continue
             for bill_url in bills(year_url):
                 try:
                     yield bill_page(bill_url)
