@@ -112,7 +112,7 @@ def count_pages(url):
     def q(arg):
         return shlex.quote(str(arg))
 
-    download_cmd = f"curl -s {q(url)} -H '{UA}' -o {q(path)}"
+    download_cmd = f"curl -Ls {q(url)} -H '{UA}' -o {q(path)} --retry 2"
     pages_cmd = f"pdfinfo {q(path)}"
 
     try:
@@ -120,12 +120,10 @@ def count_pages(url):
             subprocess.check_call(download_cmd, shell=True)
         res = subprocess.check_output(pages_cmd, shell=True).decode("utf8")
 
-    except Exception:
-        pages = -1
-        try:
+    except subprocess.CalledProcessError:
+        if path.exists():
             path.unlink()
-        except Exception:
-            pass
+        raise
 
     else:
         pages = int(re.search(r"Pages:\s+(\d+)\s", res).group(1))
