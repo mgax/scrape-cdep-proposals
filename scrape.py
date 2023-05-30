@@ -17,7 +17,7 @@ SITE_URL = "http://www.cdep.ro"
 ROOT_URL = "/pls/proiecte/upl_pck2015.home"
 PDF_ROOT = Path("/app/pdfs")
 
-session = CachedSession(cache_name="/var/local/requests_cache/cache.db")
+session = CachedSession(cache_name="cache/cache.db")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -69,7 +69,7 @@ class ValueCache:
             raise KeyError
 
 
-pagecount_cache = ValueCache("/var/local/requests_cache/pagecount.db")
+pagecount_cache = ValueCache("cache/pagecount.db")
 
 
 def resolve(url):
