@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-import sys
 import csv
 import re
 from urllib.parse import parse_qs, urlparse
@@ -43,8 +42,8 @@ UA = (
     "Gecko/20100101 Firefox/89.0"
 )
 
-class ValueCache:
 
+class ValueCache:
     def __init__(self, path):
         self.con = sqlite3.connect(path, isolation_level=None)
         self.con.execute("""
@@ -53,7 +52,7 @@ class ValueCache:
         """)
 
     def save(self, key, value):
-        res = self.con.execute(
+        self.con.execute(
             "insert into cache(id, value) values(?, ?)",
             (key, value),
         )
@@ -109,7 +108,9 @@ def count_pages(url):
 
     path = PDF_ROOT / rel_path
     path.parent.mkdir(exist_ok=True, parents=True)
-    q = lambda arg: shlex.quote(str(arg))
+
+    def q(arg):
+        return shlex.quote(str(arg))
 
     download_cmd = f"curl -s {q(url)} -H '{UA}' -o {q(path)}"
     pages_cmd = f"pdfinfo {q(path)}"
@@ -123,7 +124,7 @@ def count_pages(url):
         pages = -1
         try:
             path.unlink()
-        except:
+        except Exception:
             pass
 
     else:
